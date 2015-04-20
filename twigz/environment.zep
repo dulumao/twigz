@@ -7,7 +7,7 @@ namespace TwigZ;
  */
 class Environment
 {
-	const VERSION = '1.18.1';
+	const VERSION = "1.18.1";
 
 	protected charset;
 	protected loader;
@@ -47,13 +47,13 @@ class Environment
 	 *  * charset: The charset used by the templates (default to UTF-8).
 	 *
 	 *  * base_template_class: The base template class to use for generated
-	 *                         templates (default to Twig_Template).
+	 *                         templates (default to \Twigz\Template).
 	 *
 	 *  * cache: An absolute path where to store the compiled templates, or
 	 *           false to disable compilation cache (default).
 	 *
 	 *  * auto_reload: Whether to reload the template if the original source changed.
-	 *                 If you don't provide the auto_reload option, it will be
+	 *                 If you don"t provide the auto_reload option, it will be
 	 *                 determined automatically based on the debug value.
 	 *
 	 *  * strict_variables: Whether to ignore invalid variables in templates
@@ -70,7 +70,7 @@ class Environment
 	 *                   (default to -1 which means that all optimizations are enabled;
 	 *                   set it to 0 to disable).
 	 *
-	 * @param Twig_LoaderInterface $loader  A Twig_LoaderInterface instance
+	 * @param \Twigz\LoaderInterface $loader  A \Twigz\LoaderInterface instance
 	 * @param array                $options An array of options
 	 */
 
@@ -236,7 +236,112 @@ class Environment
 	 */
 	public function getCacheFilename(name)
 	{
-		
+		string className;
 
+		if (false === this->cache) {
+			return false;
+		}
+
+		let className = substr(this->getTemplateClass(name), strlen(this->templateClassPrefix));
+
+		return this->getCache()."/".substr(className, 0, 2)."/".substr(className, 2, 2)."/".substr(className, 4).".php";
 	}
+
+    /**
+     * Gets the template class associated with the given string.
+     *
+     * @param string $name  The name for which to calculate the template class name
+     * @param int    $index The index if it is an embedded template
+     *
+     * @return string The template class name
+     */
+    public function getTemplateClass(name, index = null)
+    {
+        return this->templateClassPrefix.hash("sha256", this->getLoader()->getCacheKey(name)).(null === index ? "" : "_".index);
+    }
+
+    /**
+     * Gets the template class prefix.
+     *
+     * @return string The template class prefix
+     */
+    public function getTemplateClassPrefix()
+    {
+        return this->templateClassPrefix;
+    }
+
+    /**
+     * Renders a template.
+     *
+     * @param string $name    The template name
+     * @param array  $context An array of parameters to pass to the template
+     *
+     * @return string The rendered template
+     *
+     * @throws \Twigz\Error_Loader  When the template cannot be found
+     * @throws \Twigz\Error_Syntax  When an error occurred during compilation
+     * @throws \Twigz\Error_Runtime When an error occurred during rendering
+     */
+    public function render(name, array! context = [])
+    {
+        return this->loadTemplate(name)->render(context);
+    }
+
+    /**
+     * Displays a template.
+     *
+     * @param string $name    The template name
+     * @param array  $context An array of parameters to pass to the template
+     *
+     * @throws \Twigz\Error_Loader  When the template cannot be found
+     * @throws \Twigz\Error_Syntax  When an error occurred during compilation
+     * @throws \Twigz\Error_Runtime When an error occurred during rendering
+     */
+    public function display(name, array! context = [])
+    {
+        this->loadTemplate(name)->display(context);
+    }
+
+    /**
+     * Loads a template by name.
+     *
+     * @param string $name  The template name
+     * @param int    $index The index if it is an embedded template
+     *
+     * @return \Twigz\TemplateInterface A template instance representing the given template name
+     *
+     * @throws \Twigz\Error_Loader When the template cannot be found
+     * @throws \Twigz\Error_Syntax When an error occurred during compilation
+     */
+    public function loadTemplate(name, index = null)
+    {
+    	var cls, cache;
+        let cls = this->getTemplateClass(name, index);
+
+        if (isset(this->loadedTemplates[cls])) {
+            return this->loadedTemplates[cls];
+        }
+
+        if (!class_exists(cls, false)) {
+        	let cache = this->getCacheFilename(name)
+            if (false === cache) {
+                eval("?>".this->compileSource(this->getLoader()->getSource(name), name));
+            } else {
+                if (!is_file(cache) || (this->isAutoReload() && !this->isTemplateFresh(name, filemtime(cache)))) {
+                    this->writeCacheFile(cache, this->compileSource(this->getLoader()->getSource(name), name));
+                }
+
+                require_once cache;
+            }
+        }
+
+        if (!this->runtimeInitialized) {
+            this->initRuntime();
+        }
+
+        return this->loadedTemplates[cls] = new cls(this);
+    }
+
+
+
 }
