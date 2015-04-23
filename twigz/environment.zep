@@ -332,7 +332,7 @@ class Environment
 				if (!is_file(cache) || (this->isAutoReload() && !this->isTemplateFresh(name, filemtime(cache)))) {
 					this->writeCacheFile(cache, this->compileSource(this->getLoader()->getSource(name), name));
 				}
-				//: Check this part
+				//TODO: Check this part
 				//require_once cache;
 			}
 		}
@@ -361,7 +361,7 @@ class Environment
 	public function isTemplateFresh(name, time)
 	{
 		var r, extension;
-		for k, extension in this->exrtensions {
+		for extension in this->extensions {
 			let r = new ReflectionObject(extension);
 			if (filemtime(r->getFileName()) > time) {
 				return false;
@@ -386,14 +386,13 @@ class Environment
 	 */
 	 public function resolveTemplate(names)
 	 {
-		array names;
-		var e;
+		var name, e;
 
 		if (!is_array(names)) {
 			let names = [names];
 		}
 
-		for k, name in names {
+		for name in names {
 			if (name instanceof \TwigZ\Template) {
 				return name;
 			}
@@ -425,15 +424,17 @@ class Environment
 	 */
 	public function clearCacheFiles()
 	{
-		var files;
+		var file, files, atunlink;
+		let atunlink = "@unlink";
+
 		if (false === this->cache) {
 			return;
 		}
 
-		let files = new RecursiveIteratorIterator(new RecursiveDirectoryIterators(this->cahe), RecursiveIteratorIterator::LEAVES_ONLY);
-		for k, file in files {
+		let files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(this->cache), \RecursiveIteratorIterator::LEAVES_ONLY);
+		for file in files {
 			if (file->isFile()) {
-				@unlink(file->getPathname());
+				{atunlink}(file->getPathname());
 			}
 		}
 	}
@@ -510,7 +511,7 @@ class Environment
 	 *
 	 * @throws \TwigZ\Error\Syntax When the token stream is syntactically or semantically wrong
 	 */
-	public function parse(<\TwigZ\TokenStream stream)
+	public function parse(<\TwigZ\TokenStream> stream)
 	{
 		return this->getParser()->parse(stream);
 	}
@@ -580,7 +581,7 @@ class Environment
      *
      * @param \TwigZ\LoaderInterface $loader A \TwigZ\LoaderInterface instance
      */
-    public function setLoader(<\TwigZ\LoaderInterface loader)
+    public function setLoader(<\TwigZ\LoaderInterface> loader)
     {
         let this->loader = loader;
     }
@@ -624,9 +625,11 @@ class Environment
      */
     public function initRuntime()
     {
+    	var extension;
+
         let this->runtimeInitialized = true;
 
-        for k, extension in this->getExtensions() {
+        for extension in this->getExtensions() {
             extension->initRuntime(this);
         }
     }
@@ -664,7 +667,7 @@ class Environment
      *
      * @param \TwigZ\ExtensionInterface $extension A \TwigZ\ExtensionInterface instance
      */
-    public function addExtension(<\TwigZ\ExtensionInterface extension)
+    public function addExtension(<\TwigZ\ExtensionInterface> extension)
     {
         if (this->extensionInitialized) {
             throw new \LogicException(sprintf("Unable to register extension \"%s\" as extensions have already been initialized.", extension->getName()));
@@ -689,5 +692,627 @@ class Environment
         }
 
         unset(this->extensions[name]);
+    }
+
+    /**
+     * Registers an array of extensions.
+     *
+     * @param array $extensions An array of extensions
+     */
+    public function setExtensions(array! extensions)
+    {
+    	var extension;
+
+    	for extension in extensions {
+    		this->addExtension(extension);
+    	}
+    }
+
+    /**
+     * Returns all registered extensions.
+     *
+     * @return array An array of extensions
+     */
+    public function getExtensions()
+    {
+        return this->extensions;
+    }
+
+    /**
+     * Registers a Token Parser.
+     *
+     * @param \TwigZ\TokenParserInterface $parser A \TwigZ\TokenParserInterface instance
+     */
+    public function addTokenParser(<TwigZ\TokenParserInterface> parser)
+    {
+        if (this->extensionInitialized) {
+            throw new \LogicException("Unable to add a token parser as extensions have already been initialized.");
+        }
+
+        this->staging->addTokenParser(parser);
+    }
+
+    /**
+     * Gets the registered Token Parsers.
+     *
+     * @return \TwigZ\TokenParserBrokerInterface A broker containing token parsers
+     */
+    public function getTokenParsers()
+    {
+        if (!this->extensionInitialized) {
+            this->initExtensions();
+        }
+
+        return this->parsers;
+    }
+
+    /**
+     * Gets registered tags.
+     *
+     * Be warned that this method cannot return tags defined by \TwigZ\TokenParserBrokerInterface classes.
+     *
+     * @return \TwigZ\TokenParserInterface[] An array of \TwigZ\TokenParserInterface instances
+     */
+    public function getTags()
+    {
+    	array tags;
+    	var parser;
+
+        let tags = [];
+        for parser in this->getTokenParsers()->getParsers() {
+            if (parser instanceof \TwigZ\TokenParserInterface) {
+                let tags[parser->getTag()] = parser;
+            }
+        }
+
+        return tags;
+    }
+
+    /**
+     * Registers a Node Visitor.
+     *
+     * @param \TwigZ\NodeVisitorInterface $visitor A \TwigZ\NodeVisitorInterface instance
+     */
+    public function addNodeVisitor(<TwigZ\NodeVisitorInterface> visitor)
+    {
+        if (this->extensionInitialized) {
+            throw new LogicException("Unable to add a node visitor as extensions have already been initialized.");
+        }
+
+        this->staging->addNodeVisitor(visitor);
+    }
+
+    /**
+     * Gets the registered Node Visitors.
+     *
+     * @return \TwigZ\NodeVisitorInterface[] An array of \TwigZ\NodeVisitorInterface instances
+     */
+    public function getNodeVisitors()
+    {
+        if (!this->extensionInitialized) {
+            this->initExtensions();
+        }
+
+        return this->visitors;
+    }
+
+    /**
+     * Registers a Filter.
+     *
+     * @param string|\TwigZ\SimpleFilter               $name   The filter name or a \TwigZ\SimpleFilter instance
+     * @param \TwigZ\FilterInterface|\TwigZ\SimpleFilter $filter A \TwigZ\FilterInterface instance or a \TwigZ\SimpleFilter instance
+     */
+    public function addFilter(name, filter = null)
+    {
+        if (!(name instanceof \TwigZ\SimpleFilter) && (!(filter instanceof \TwigZ\SimpleFilter) || filter instanceof \TwigZ\FilterInterface)) {
+            throw new \LogicException("A filter must be an instance of \\TwigZ\\FilterInterface or \\TwigZ\\SimpleFilter");
+        }
+
+        if (name instanceof \TwigZ\SimpleFilter) {
+            let filter = name;
+            let name = filter->getName();
+        }
+
+        if (this->extensionInitialized) {
+            throw new \LogicException(sprintf("Unable to add filter \"%s\" as extensions have already been initialized.", $name));
+        }
+
+        this->staging->addFilter(name, filter);
+    }
+
+    /**
+     * Get a filter by name.
+     *
+     * Subclasses may override this method and load filters differently;
+     * so no list of filters is available.
+     *
+     * @param string $name The filter name
+     *
+     * @return \TwigZ\Filter|false A \TwigZ\Filter instance or false if the filter does not exist
+     */
+    public function getFilter(name)
+    {
+        if (!this->extensionInitialized) {
+            this->initExtensions();
+        }
+
+        if (isset(this->filters[name])) {
+            return this->filters[name];
+        }
+
+        var callback, pattern, filter, count, matches;
+        let count = 0;
+        let matches = [];
+
+    	for pattern, filter in this->filters {
+            let pattern = str_replace("\\*", "(.*?)", preg_quote(pattern, "#"), count);
+
+            if (count) {
+                if (preg_match("#^".pattern."$#", name, matches)) {
+                    array_shift(matches);
+                    filter->setArguments(matches);
+
+                    return filter;
+                }
+            }
+        }
+
+        for callback in this->filterCallbacks {
+        	let filter = call_user_func(callback, name);
+            if (false !== filter) {
+                return filter;
+            }
+        }
+
+        return false;
+    }
+
+    public function registerUndefinedFilterCallback(callableFilter)
+    {
+        let this->filterCallbacks[] = callableFilter;
+    }
+
+    /**
+     * Gets the registered Filters.
+     *
+     * Be warned that this method cannot return filters defined with registerUndefinedFunctionCallback.
+     *
+     * @return \TwigZ\FilterInterface[] An array of \TwigZ\FilterInterface instances
+     *
+     * @see registerUndefinedFilterCallback
+     */
+    public function getFilters()
+    {
+        if (!this->extensionInitialized) {
+            this->initExtensions();
+        }
+
+        return this->filters;
+    }
+
+    /**
+     * Registers a Test.
+     *
+     * @param string|\TwigZ\SimpleTest             $name The test name or a \TwigZ\SimpleTest instance
+     * @param \TwigZ\TestInterface|\TwigZ\SimpleTest $test A \TwigZ\TestInterface instance or a \TwigZ\SimpleTest instance
+     */
+    public function addTest(name, test = null)
+    {
+        if (!(name instanceof \TwigZ\SimpleTest) && (!(test instanceof \TwigZ\SimpleTest) || test instanceof \TwigZ\TestInterface)) {
+            throw new \LogicException("A test must be an instance of \\TwigZ\\TestInterface or \\TwigZ\\SimpleTest");
+        }
+
+        if (name instanceof \TwigZ\SimpleTest) {
+            let test = name;
+            let name = test->getName();
+        }
+
+        if (this->extensionInitialized) {
+            throw new \LogicException(sprintf("Unable to add test \"%s\" as extensions have already been initialized.", name));
+        }
+
+        this->staging->addTest(name, test);
+    }
+
+    /**
+     * Gets the registered Tests.
+     *
+     * @return \TwigZ\TestInterface[] An array of \TwigZ\TestInterface instances
+     */
+    public function getTests()
+    {
+        if (!this->extensionInitialized) {
+            this->initExtensions();
+        }
+
+        return this->tests;
+    }
+
+    /**
+     * Gets a test by name.
+     *
+     * @param string $name The test name
+     *
+     * @return \TwigZ\Test|false A \TwigZ\Test instance or false if the test does not exist
+     */
+    public function getTest(name)
+    {
+        if (!this->extensionInitialized) {
+            this->initExtensions();
+        }
+
+        if (isset(this->tests[name])) {
+            return this->tests[name];
+        }
+
+        return false;
+    }
+
+    /**
+     * Registers a Function.
+     *
+     * @param string|\TwigZ\SimpleFunction                 $name     The function name or a Twig_SimpleFunction instance
+     * @param \TwigZ\FunctionInterface|\TwigZ\SimpleFunction $function A \TwigZ\FunctionInterface instance or a \TwigZ\SimpleFunction instance
+     */
+    public function addFunction(name, simpleFunction = null)
+    {
+        if (!(name instanceof \TwigZ\SimpleFunction) && (!(simpleFunction instanceof \TwigZ\SimpleFunction) || simpleFunction instanceof \TwigZ\FunctionInterface)) {
+            throw new \LogicException("A function must be an instance of \\TwigZ\\FunctionInterface or \\TwigZ\\SimpleFunction");
+        }
+
+        if (name instanceof \TwigZ\SimpleFunction) {
+            let simpleFunction = name;
+            let name = simpleFunction->getName();
+        }
+
+        if (this->extensionInitialized) {
+            throw new \LogicException(sprintf("Unable to add function \"%s\" as extensions have already been initialized.", name));
+        }
+
+        this->staging->addFunction(name, simpleFunction);
+    }
+
+    /**
+     * Get a function by name.
+     *
+     * Subclasses may override this method and load functions differently;
+     * so no list of functions is available.
+     *
+     * @param string $name function name
+     *
+     * @return \TwigZ\Function|false A \TwigZ\Function instance or false if the function does not exist
+     */
+    public function getFunction(name)
+    {
+        if (!this->extensionInitialized) {
+            this->initExtensions();
+        }
+
+        if (isset(this->functions[name])) {
+            return this->functions[name];
+        }
+        var callback, pattern, simpleFunction, count, matches;
+        let count = 0;
+        let matches = [];
+
+        for pattern, simpleFunction in this->functions {
+            let pattern = str_replace("\\*", "(.*?)", preg_quote(pattern, "#"), count);
+
+            if (count) {
+                if (preg_match("#^".pattern."$#", name, matches)) {
+                    array_shift(matches);
+                    simpleFunction->setArguments(matches);
+
+                    return simpleFunction;
+                }
+            }
+        }
+
+        for callback in this->functionCallbacks {
+        	let simpleFunction = call_user_func(callback, name); 
+            if (false !== simpleFunction) {
+                return simpleFunction;
+            }
+        }
+
+        return false;
+    }
+
+    public function registerUndefinedFunctionCallback(callableFunction)
+    {
+        let this->functionCallbacks[] = callableFunction;
+    }
+
+    /**
+     * Gets registered functions.
+     *
+     * Be warned that this method cannot return functions defined with registerUndefinedFunctionCallback.
+     *
+     * @return \TwigZ\FunctionInterface[] An array of \TwigZ\FunctionInterface instances
+     *
+     * @see registerUndefinedFunctionCallback
+     */
+    public function getFunctions()
+    {
+        if (!this->extensionInitialized) {
+            this->initExtensions();
+        }
+
+        return this->functions;
+    }
+
+    /**
+     * Registers a Global.
+     *
+     * New globals can be added before compiling or rendering a template;
+     * but after, you can only update existing globals.
+     *
+     * @param string $name  The global name
+     * @param mixed  $value The global value
+     */
+    public function addGlobal(name, value)
+    {
+        if (this->extensionInitialized || this->runtimeInitialized) {
+            if (null === this->globals) {
+                let this->globals = this->initGlobals();
+            }
+
+            /* This condition must be uncommented in Twig 2.0
+            if (!array_key_exists($name, $this->globals)) {
+                throw new LogicException(sprintf('Unable to add global "%s" as the runtime or the extensions have already been initialized.', $name));
+            }
+            */
+        }
+
+        if (this->extensionInitialized || this->runtimeInitialized) {
+            // update the value
+            let this->globals[name] = value;
+        } else {
+            this->staging->addGlobal(name, value);
+        }
+    }
+
+    /**
+     * Gets the registered Globals.
+     *
+     * @return array An array of globals
+     */
+    public function getGlobals()
+    {
+        if (!this->runtimeInitialized && !this->extensionInitialized) {
+            return this->initGlobals();
+        }
+
+        if (null === this->globals) {
+            let this->globals = this->initGlobals();
+        }
+
+        return this->globals;
+    }
+
+    /**
+     * Merges a context with the defined globals.
+     *
+     * @param array $context An array representing the context
+     *
+     * @return array The context merged with the globals
+     */
+    public function mergeGlobals(array! context)
+    {
+        // we don't use array_merge as the context being generally
+        // bigger than globals, this code is faster.
+        var key, value;
+
+        for key, value in this->getGlobals() {
+            if (!array_key_exists(key, context)) {
+                let context[key] = value;
+            }
+        }
+
+        return context;
+    }
+
+    /**
+     * Gets the registered unary Operators.
+     *
+     * @return array An array of unary operators
+     */
+    public function getUnaryOperators()
+    {
+        if (!this->extensionInitialized) {
+            this->initExtensions();
+        }
+
+        return this->unaryOperators;
+    }
+
+    /**
+     * Gets the registered binary Operators.
+     *
+     * @return array An array of binary operators
+     */
+    public function getBinaryOperators()
+    {
+        if (!this->extensionInitialized) {
+            this->initExtensions();
+        }
+
+        return this->binaryOperators;
+    }
+
+    public function computeAlternatives(name, items)
+    {
+    	array alternatives;
+    	var lev, item;
+
+        let alternatives = [];
+
+        for item in items {
+            let lev = levenshtein(name, item);
+            if (lev <= strlen(name) / 3 || false !== strpos(item, name)) {
+                let alternatives[item] = lev;
+            }
+        }
+        asort(alternatives);
+
+        return array_keys(alternatives);
+    }
+
+    protected function initGlobals()
+    {
+    	array globals;
+    	var extGlob, extension;
+        let globals = [];
+
+        // foreach ($this->extensions as $extension) {
+        for extension in this->extensions {
+            let extGlob = extension->getGlobals();
+            if (!is_array(extGlob)) {
+                throw new UnexpectedValueException(sprintf("\"%s::getGlobals()\" must return an array of globals.", get_class(extension)));
+            }
+
+            let globals[] = extGlob;
+        }
+
+        let globals[] = this->staging->getGlobals();
+
+        return call_user_func_array("array_merge", globals);
+    }
+
+    protected function initExtensions()
+    {
+        if (this->extensionInitialized) {
+            return;
+        }
+		var extension;
+
+        let this->extensionInitialized = true;
+        let this->parsers = new \TwigZ\TokenParserBroker();
+        let this->filters = [];
+        let this->functions = [];
+        let this->tests = [];
+        let this->visitors = [];
+        let this->unaryOperators = [];
+        let this->binaryOperators = [];
+
+        // foreach ($this->extensions as $extension) {
+        for extension in this->extensions {
+            this->initExtension(extension);
+        }
+        this->initExtension(this->staging);
+    }
+
+    protected function initExtension(<TwigZ\ExtensionInterface> extension)
+    {
+        // filters
+        var 
+        	filter, 
+        	name,
+        	simpleFunction,
+        	test,
+        	parser,
+        	operators,
+        	visitor;
+
+        for name, filter in extension->getFilters() {
+            if (name instanceof \TwigZ\SimpleFilter) {
+                let filter = name;
+                let name = filter->getName();
+            } elseif (filter instanceof \TwigZ\SimpleFilter) {
+                let name = filter->getName();
+            }
+
+            let this->filters[name] = filter;
+        }
+
+        // functions
+        for name, simpleFunction in extension->getFunctions() {
+            if (name instanceof \TwigZ\SimpleFunction) {
+                let simpleFunction = name;
+                let name = simpleFunction->getName();
+            } elseif (simpleFunction instanceof \TwigZ\SimpleFunction) {
+                let name = simpleFunction->getName();
+            }
+
+            let this->functions[name] = simpleFunction;
+        }
+
+        // tests
+        for name, test in extension->getTests() {
+            if (name instanceof \TwigZ\SimpleTest) {
+                let test = name;
+                let name = test->getName();
+            } elseif (test instanceof \TwigZ\SimpleTest) {
+                let name = test->getName();
+            }
+
+            let this->tests[name] = test;
+        }
+
+        // token parsers
+        for parser in extension->getTokenParsers() {
+            if (parser instanceof \TwigZ\TokenParserInterface) {
+                this->parsers->addTokenParser(parser);
+            } elseif (parser instanceof \TwigZ\TokenParserBrokerInterface) {
+                this->parsers->addTokenParserBroker(parser);
+            } else {
+                throw new LogicException("getTokenParsers() must return an array of \\TwigZ\\TokenParserInterface or \\Twigz\\TokenParserBrokerInterface instances");
+            }
+        }
+
+        // node visitors
+        for visitor in extension->getNodeVisitors() {
+            let this->visitors[] = visitor;
+        }
+
+        // operators
+        let operators = extension->getOperators();
+        if (operators) {
+            if (2 !== count(operators)) {
+                throw new \InvalidArgumentException(sprintf("\"%s::getOperators()\" does not return a valid operators array.", get_class(extension)));
+            }
+
+            let this->unaryOperators = array_merge(this->unaryOperators, operators[0]);
+            let this->binaryOperators = array_merge(this->binaryOperators, operators[1]);
+        }
+    }
+
+    protected function writeCacheFile(file, content)
+    {
+    	var dir,
+    		atmkdir,
+    		tmpFile,
+    		atfile_put_contents,
+    		atrename,
+    		atchmod,
+    		atcopy,
+    		tildaumask
+    		;
+    	let atmkdir = "@mkdir";
+    	let atfile_put_contents= "@file_put_contents";
+    	let atrename = "@rename";
+    	let atchmod = "@chmod";
+    	let atcopy = "@copy";
+    	let tildaumask = "0666 & ~umask()";
+        let dir = dirname(file);
+        if (!is_dir(dir)) {
+            if (false === {atmkdir}(dir, 0777, true) && !is_dir(dir)) {
+                throw new \RuntimeException(sprintf("Unable to create the cache directory (%s).", dir));
+            }
+        } elseif (!is_writable(dir)) {
+            throw new \RuntimeException(sprintf("Unable to write in the cache directory (%s).", dir));
+        }
+
+        let tmpFile = tempnam(dir, basename(file));
+        if (false !== {atfile_put_contents}(tmpFile, content)) {
+            // rename does not work on Win32 before 5.2.6
+            if ({atrename}(tmpFile, file) || ({atcopy}(tmpFile, file) && unlink(tmpFile))) {
+                {atchmod}(file, tildaumask);
+
+                return;
+            }
+        }
+
+        throw new \RuntimeException(sprintf("Failed to write cache file \"%s\".", file));
     }
 }

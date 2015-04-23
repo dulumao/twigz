@@ -108,10 +108,10 @@ class Compiler implements CompilerInterface
 	 */
 	public function write()
 	{
-		var strings, k, v;
+		var strings, v;
 
 		let strings = func_get_args();
-		for k, v in strings {
+		for v in strings {
 			this->addIndentation();
 			let this->source .= v;
 		}
