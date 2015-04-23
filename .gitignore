@@ -1,6 +1,8 @@
 .temp
 compile.log
 compile-errors.log
+ext/kernel/*.gch
+ext/kernel/*.lo
 ext/.libs/*
 ext/autom4te.cache/*
 ext/build/*

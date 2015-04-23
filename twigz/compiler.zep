@@ -150,44 +150,42 @@ class Compiler implements CompilerInterface
 	 *
 	 * @param mixed $value The value to convert
 	 *
-	 * @return Twig_Compiler The current compiler instance
+	 * @return \Twig\Compiler The current compiler instance
 	 */
-	public function repr(value)
+	public function repr(var someValue)
 	{
-		var locale, key, v;
-		bool first;
+		var locale, k, v, first;
 
-		if (is_int(value) || is_float(value)) {
+		if (is_int(someValue) || is_float(someValue)) {
 			let locale = setlocale(LC_NUMERIC, 0);
 			if (false !== locale) {
 				setlocale(LC_NUMERIC, 'C');
 			}
 
-			this->raw(value);
+			this->raw(someValue);
 
 			if (false !== locale) {
 				setlocale(LC_NUMERIC, locale);
 			}
-		} elseif (null === value) {
+		} elseif (null === someValue) {
 			this->raw("null");
-		} elseif (is_bool(value)) {
-			this->raw(value ? "true" : "false");
-		} elseif (is_array(value)) {
-			this->raw("array(");
-			let first = true;
-			//foreach ($value as $key => $v) {
-			for key, v in value {
-				if (!first) {
-					this->raw(", ");
-				}
-				let first = false;
-				this->repr(key);
-				this->raw(" => ");
-				this->repr(v);
+		} elseif (is_bool(someValue)) {
+			this->raw(someValue ? "true" : "false");
+		} elseif (is_array(someValue)) {
+			//this->raw("array(");
+			//let first = true;
+			for k, v in someValue {
+			// 	if (!first) {
+			// 		this->raw(", ");
+			// 	}
+			// 	let first = false;
+			// 	this->repr(key);
+			// 	this->raw(" => ");
+			// 	this->repr(v);
 			}
-			this->raw(")");
+			//this->raw(")");
 		} else {
-			this->createString(value);
+			this->createString(someValue);
 		}
 
 		return this;
