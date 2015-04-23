@@ -4,6 +4,9 @@ compile-errors.log
 ext/kernel/*.gch
 ext/kernel/*.lo
 ext/.libs/*
+ext/kernel/extended/.libs/*
+ext/kernel/extended/array.lo
+ext/kernel/extended/fcall.lo
 ext/autom4te.cache/*
 ext/build/*
 ext/include/*

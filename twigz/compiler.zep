@@ -154,7 +154,7 @@ class Compiler implements CompilerInterface
 	 */
 	public function repr(var someValue)
 	{
-		var locale, k, v, first;
+		var locale, first;
 
 		if (is_int(someValue) || is_float(someValue)) {
 			let locale = setlocale(LC_NUMERIC, 0);
@@ -172,16 +172,17 @@ class Compiler implements CompilerInterface
 		} elseif (is_bool(someValue)) {
 			this->raw(someValue ? "true" : "false");
 		} elseif (is_array(someValue)) {
-			//this->raw("array(");
-			//let first = true;
+			var k, v;
+			this->raw("array(");
+			let first = true;
 			for k, v in someValue {
-			// 	if (!first) {
-			// 		this->raw(", ");
-			// 	}
-			// 	let first = false;
-			// 	this->repr(key);
-			// 	this->raw(" => ");
-			// 	this->repr(v);
+				if !(first) {
+					this->raw(", ");
+				}
+				let first = false;
+				this->repr(k);
+				this->raw(" => ");
+				this->repr(v);
 			}
 			//this->raw(")");
 		} else {
