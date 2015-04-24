@@ -333,7 +333,7 @@ class Environment
 					this->writeCacheFile(cache, this->compileSource(this->getLoader()->getSource(name), name));
 				}
 				//TODO: Check this part
-				//require_once cache;
+				require cache;
 			}
 		}
 
